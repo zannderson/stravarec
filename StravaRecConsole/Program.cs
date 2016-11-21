@@ -114,6 +114,7 @@ namespace StravaRecConsole
                 }
             }
 
+            //this is just echo debugging to see if segments are being properly categorized
 			ShowMeTheMoney(uphill, "Uphill");
 			ShowMeTheMoney(downhill, "Downhill");
 			ShowMeTheMoney(flat, "Flat");
@@ -123,74 +124,37 @@ namespace StravaRecConsole
             double uphillAveragePercentile = 0.0;
             double downhillAveragePercentile = 0.0;
             double flatAveragePercentile = 0.0;
+            double upDownAveragePercentile = 0.0;
 			DoStuffToStuff(flat, me.Id, ref flatAveragePercentile);
 			DoStuffToStuff(uphill, me.Id, ref uphillAveragePercentile);
 			DoStuffToStuff(downhill, me.Id, ref downhillAveragePercentile);
+            DoStuffToStuff(upNDown, me.Id, ref upDownAveragePercentile);
 
 			//precalculate weights so they can be normalized
 			double lowestFlatWeight = 0.0;
 			double lowestUpWeight = 0.0;
 			double lowestDownWeight = 0.0;
-            foreach (var flatSeg in flat)
-            {
-				flatSeg.SegmentWeight = flatSeg.LeaderboardPercentile - flatAveragePercentile;
-				if(flatSeg.SegmentWeight < lowestFlatWeight)
-				{
-					lowestFlatWeight = flatSeg.SegmentWeight;
-				}
-            }
-
-            foreach (var upSeg in uphill)
-            {
-				upSeg.SegmentWeight = upSeg.LeaderboardPercentile - uphillAveragePercentile;
-				if (upSeg.SegmentWeight < lowestUpWeight)
-				{
-					lowestUpWeight = upSeg.SegmentWeight;
-				}
-			}
-
-            foreach (var downSeg in downhill)
-			{
-				downSeg.SegmentWeight = downSeg.LeaderboardPercentile - downhillAveragePercentile;
-				if (downSeg.SegmentWeight < lowestDownWeight)
-				{
-					lowestDownWeight = downSeg.SegmentWeight;
-				}
-			}
+            double lowestUpDownWeight = 0.0;
+            CalculateWeights(flat, flatAveragePercentile, ref lowestFlatWeight);
+            CalculateWeights(uphill, uphillAveragePercentile, ref lowestUpWeight);
+            CalculateWeights(downhill, downhillAveragePercentile, ref lowestDownWeight);
+            CalculateWeights(upNDown, upDownAveragePercentile, ref lowestUpDownWeight);
 			lowestFlatWeight = Math.Abs(lowestFlatWeight);
 			lowestUpWeight = Math.Abs(lowestUpWeight);
 			lowestDownWeight = Math.Abs(lowestDownWeight);
+            lowestUpDownWeight = Math.Abs(lowestUpDownWeight);
 
             //do the bulk of it, weights can be normalized here
             double[] uphillVec = new double[] { 0.0, 0.0 };
             double[] downhillVec = new double[] { 0.0, 0.0 };
             double[] flatVec = new double[] { 0.0, 0.0 };
-            foreach (var flatSeg in flat)
-            {
-				flatSeg.SegmentWeight = flatSeg.SegmentWeight + lowestFlatWeight;
-				int starred = flatSeg.Starred ? 1 : 0;
-				double weighting = (flatSeg.SegmentWeight + starred) / flat.Count;
-				flatVec[0] += flatSeg.Segment.Distance * weighting;
-				flatVec[1] += flatSeg.Segment.AverageGrade * weighting;
-            }
+            double[] upDownVec = new double[] { 0.0, 0.0 };
+            BuildVectors(flat, lowestFlatWeight, ref flatVec);
+            BuildVectors(uphill, lowestUpWeight, ref uphillVec);
+            BuildVectors(downhill, lowestDownWeight, ref downhillVec);
+            BuildVectors(upNDown, lowestUpDownWeight, ref upDownVec);
 
-            foreach (var upSeg in uphill)
-			{
-				upSeg.SegmentWeight = upSeg.SegmentWeight + lowestUpWeight;
-				int starred = upSeg.Starred ? 1 : 0;
-				double weighting = (upSeg.SegmentWeight + starred) / uphill.Count;
-				uphillVec[0] += upSeg.Segment.Distance * weighting;
-				uphillVec[1] += upSeg.Segment.AverageGrade * weighting;
-			}
-
-            foreach (var downSeg in downhill)
-			{
-				downSeg.SegmentWeight = downSeg.SegmentWeight + lowestDownWeight;
-				int starred = downSeg.Starred ? 1 : 0;
-				double weighting = (downSeg.SegmentWeight + starred) / downhill.Count;
-				downhillVec[0] += downSeg.Segment.Distance * weighting;
-				downhillVec[1] += downSeg.Segment.AverageGrade * weighting;
-			}
+            Console.Out.WriteLine("Time to find some segments!!!");
         }
 
 		private static int GetMyPlace(long id, Leaderboard leaderboard)
@@ -227,5 +191,31 @@ namespace StravaRecConsole
 				Console.Out.WriteLine(segment.Segment.Name);
 			}
 		}
+
+        private static void CalculateWeights(List<UserSegment> segments, double average, ref double lowest)
+        {
+            Console.Out.WriteLine("Calculating weights for {0}", segments);
+            foreach (var segment in segments)
+            {
+                segment.SegmentWeight = segment.LeaderboardPercentile - average;
+                Console.Out.WriteLine("Segment: {0}, weight: {1}", segment.Segment.Name, segment.SegmentWeight);
+                if (segment.SegmentWeight < lowest)
+                {
+                    lowest = segment.SegmentWeight;
+                }
+            }
+        }
+
+        private static void BuildVectors(List<UserSegment> segments, double lowestWeight, ref double[] vector)
+        {
+            foreach (var downSeg in segments)
+            {
+                downSeg.SegmentWeight = downSeg.SegmentWeight + lowestWeight;
+                int starred = downSeg.Starred ? 1 : 0;
+                double weighting = (downSeg.SegmentWeight + starred) / segments.Count;
+                vector[0] += downSeg.Segment.Distance * weighting;
+                vector[1] += downSeg.Segment.AverageGrade * weighting;
+            }
+        }
     }
 }
