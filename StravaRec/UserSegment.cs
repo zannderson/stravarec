@@ -29,6 +29,10 @@ namespace StravaRec
             Starred = starred;
             SegmentLeaderboard = leaderboard;
             Efforts = new List<SegmentEffort>(efforts);
+			if(efforts != null && efforts.Length > 0)
+			{
+				Segment = efforts[0].Segment;
+			}
         }
 
         public int PlaceInLeaderboard { get; set; }

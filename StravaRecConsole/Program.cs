@@ -24,10 +24,13 @@ namespace StravaRecConsole
             StatsClient statClient = new StatsClient(auth);
             StreamClient sClient = new StreamClient(auth);
 
+			ActivityType currentType = ActivityType.Run;
+
             Athlete me = athClient.GetAthlete();
             //var mySegmentEfforts = segClient.GetRecords(me.Id.ToString());
             var summary = actClient.GetSummaryThisYear();
-            var myActivities = actClient.GetActivitiesBefore(DateTime.Now);
+            var myActivities = actClient.GetActivitiesBefore(DateTime.Now, 6, 50);
+			myActivities.RemoveAll(a => a.Type != currentType);
             Dictionary<int, UserSegment> mySegments = new Dictionary<int, UserSegment>();
             var myStarred = segClient.GetStarredSegments();
             foreach (var activity in myActivities)
@@ -80,6 +83,7 @@ namespace StravaRecConsole
             List<UserSegment> uphill = new List<UserSegment>();
             List<UserSegment> downhill = new List<UserSegment>();
             List<UserSegment> flat = new List<UserSegment>();
+			List<UserSegment> upNDown = new List<UserSegment>();
 
             //DO STUFF WITH DATA
             foreach (var segRecord in mySegments)
@@ -97,43 +101,65 @@ namespace StravaRecConsole
                     }
                     else
                     {
-                        flat.Add(segRecord.Value);
+						if (segRecord.Value.Segment.MaxElevation - segRecord.Value.Segment.MinElevation >= 50 ||
+							(segRecord.Value.Segment.MaxElevation - segRecord.Value.Segment.MinElevation) / segRecord.Value.Segment.Distance > 0.03)
+						{
+							upNDown.Add(segRecord.Value);
+						}
+						else
+						{
+							flat.Add(segRecord.Value);
+						}
                     }
                 }
             }
+
+			ShowMeTheMoney(uphill, "Uphill");
+			ShowMeTheMoney(downhill, "Downhill");
+			ShowMeTheMoney(flat, "Flat");
+			ShowMeTheMoney(upNDown, "Up and Down");
 
             //compute average percentile within each group
             double uphillAveragePercentile = 0.0;
             double downhillAveragePercentile = 0.0;
             double flatAveragePercentile = 0.0;
+			DoStuffToStuff(flat, me.Id, ref flatAveragePercentile);
+			DoStuffToStuff(uphill, me.Id, ref uphillAveragePercentile);
+			DoStuffToStuff(downhill, me.Id, ref downhillAveragePercentile);
+
+			//precalculate weights so they can be normalized
+			double lowestFlatWeight = 0.0;
+			double lowestUpWeight = 0.0;
+			double lowestDownWeight = 0.0;
             foreach (var flatSeg in flat)
             {
-                flatAveragePercentile += (/*my place / */flatSeg.SegmentLeaderboard.Entries.Count) / flat.Count;
+				flatSeg.SegmentWeight = flatSeg.LeaderboardPercentile - flatAveragePercentile;
+				if(flatSeg.SegmentWeight < lowestFlatWeight)
+				{
+					lowestFlatWeight = flatSeg.SegmentWeight;
+				}
             }
 
             foreach (var upSeg in uphill)
             {
-                uphillAveragePercentile += (/*my place / */upSeg.SegmentLeaderboard.Entries.Count) / uphill.Count;
-            }
+				upSeg.SegmentWeight = upSeg.LeaderboardPercentile - uphillAveragePercentile;
+				if (upSeg.SegmentWeight < lowestUpWeight)
+				{
+					lowestUpWeight = upSeg.SegmentWeight;
+				}
+			}
 
             foreach (var downSeg in downhill)
-            {
-                downhillAveragePercentile += (/*my place / */downSeg.SegmentLeaderboard.Entries.Count) / downhill.Count;
-            }
-
-            //precalculate weights so they can be normalized
-            foreach (var flatSeg in flat)
-            {
-
-            }
-
-            foreach (var upSeg in uphill)
-            {
-            }
-
-            foreach (var downSeg in downhill)
-            {
-            }
+			{
+				downSeg.SegmentWeight = downSeg.LeaderboardPercentile - downhillAveragePercentile;
+				if (downSeg.SegmentWeight < lowestDownWeight)
+				{
+					lowestDownWeight = downSeg.SegmentWeight;
+				}
+			}
+			lowestFlatWeight = Math.Abs(lowestFlatWeight);
+			lowestUpWeight = Math.Abs(lowestUpWeight);
+			lowestDownWeight = Math.Abs(lowestDownWeight);
 
             //do the bulk of it, weights can be normalized here
             double[] uphillVec = new double[] { 0.0, 0.0 };
@@ -141,16 +167,65 @@ namespace StravaRecConsole
             double[] flatVec = new double[] { 0.0, 0.0 };
             foreach (var flatSeg in flat)
             {
-
+				flatSeg.SegmentWeight = flatSeg.SegmentWeight + lowestFlatWeight;
+				int starred = flatSeg.Starred ? 1 : 0;
+				double weighting = (flatSeg.SegmentWeight + starred) / flat.Count;
+				flatVec[0] += flatSeg.Segment.Distance * weighting;
+				flatVec[1] += flatSeg.Segment.AverageGrade * weighting;
             }
 
             foreach (var upSeg in uphill)
-            {
-            }
+			{
+				upSeg.SegmentWeight = upSeg.SegmentWeight + lowestUpWeight;
+				int starred = upSeg.Starred ? 1 : 0;
+				double weighting = (upSeg.SegmentWeight + starred) / uphill.Count;
+				uphillVec[0] += upSeg.Segment.Distance * weighting;
+				uphillVec[1] += upSeg.Segment.AverageGrade * weighting;
+			}
 
             foreach (var downSeg in downhill)
-            {
-            }
+			{
+				downSeg.SegmentWeight = downSeg.SegmentWeight + lowestDownWeight;
+				int starred = downSeg.Starred ? 1 : 0;
+				double weighting = (downSeg.SegmentWeight + starred) / downhill.Count;
+				downhillVec[0] += downSeg.Segment.Distance * weighting;
+				downhillVec[1] += downSeg.Segment.AverageGrade * weighting;
+			}
         }
+
+		private static int GetMyPlace(long id, Leaderboard leaderboard)
+		{
+			int place = 1;
+			foreach (var entry in leaderboard.Entries)
+			{
+				if(entry.AthleteId == id)
+				{
+					return place;
+				}
+				place++;
+			}
+			return -1;
+		}
+
+		private static void DoStuffToStuff(List<UserSegment> segmentList, long myId, ref double average)
+		{
+			foreach (var segment in segmentList)
+			{
+				int place = GetMyPlace(myId, segment.SegmentLeaderboard);
+				segment.PlaceInLeaderboard = place;
+				var percentile = 1.0 - ((double)place / segment.SegmentLeaderboard.EntryCount);
+				segment.LeaderboardPercentile = percentile;
+				average += percentile / segmentList.Count;
+			}
+		}
+
+		private static void ShowMeTheMoney(List<UserSegment> segs, string title)
+		{
+			Console.Out.WriteLine("$$$$$$$$$$$$${0}$$$$$$$$$$$$$", title);
+			foreach (var segment in segs)
+			{
+				Console.Out.WriteLine(segment.Segment.Name);
+			}
+		}
     }
 }
