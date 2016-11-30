@@ -20,6 +20,8 @@ namespace StravaRec
 
         public Segment Segment { get; set; }
 
+		public ExplorerSegment ExplorerSegment { get; set; }
+
         public List<SegmentEffort> Efforts { get; set; }
 
         public Leaderboard SegmentLeaderboard { get; set; }
@@ -28,9 +30,9 @@ namespace StravaRec
         {
             Starred = starred;
             SegmentLeaderboard = leaderboard;
-            Efforts = new List<SegmentEffort>(efforts);
 			if(efforts != null && efforts.Length > 0)
 			{
+				Efforts = new List<SegmentEffort>(efforts);
 				Segment = efforts[0].Segment;
 			}
         }

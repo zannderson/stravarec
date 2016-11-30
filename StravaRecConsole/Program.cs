@@ -1,6 +1,7 @@
 ﻿using Strava.Athletes;
 using Strava.Authentication;
 using Strava.Clients;
+using Strava.Common;
 using Strava.Activities;
 using Strava.Segments;
 using System;
@@ -12,8 +13,13 @@ using StravaRec;
 namespace StravaRecConsole
 {
     class Program
-    {
-        static void Main(string[] args)
+	{
+		private const int MAX_SEARCH_EXTENT = 5000; //5k in each direction gives a 10k x 10k square. Seems reasonable.
+
+		private static double _metersPerDegreeLongitude = 0;
+		private static double _metersPerDegreeLatitude = 0;
+
+		static void Main(string[] args)
         {
             //GET DATA
             StaticAuthentication auth = new StaticAuthentication("34834781045370ca62b4b3fc6be384ffb868a1c0");
@@ -29,7 +35,7 @@ namespace StravaRecConsole
             Athlete me = athClient.GetAthlete();
             //var mySegmentEfforts = segClient.GetRecords(me.Id.ToString());
             var summary = actClient.GetSummaryThisYear();
-            var myActivities = actClient.GetActivitiesBefore(DateTime.Now, 6, 50);
+            var myActivities = actClient.GetActivitiesBefore(DateTime.Now, 35, 10);
 			myActivities.RemoveAll(a => a.Type != currentType);
             Dictionary<int, UserSegment> mySegments = new Dictionary<int, UserSegment>();
             var myStarred = segClient.GetStarredSegments();
@@ -85,34 +91,7 @@ namespace StravaRecConsole
             List<UserSegment> flat = new List<UserSegment>();
 			List<UserSegment> upNDown = new List<UserSegment>();
 
-            //DO STUFF WITH DATA
-            foreach (var segRecord in mySegments)
-            {
-                var seg = segRecord.Value.Segment;
-                if(seg != null)
-                {
-                    if(seg.AverageGrade >= 3.0)
-                    {
-                        uphill.Add(segRecord.Value);
-                    }
-                    else if(seg.AverageGrade <= -3.0)
-                    {
-                        downhill.Add(segRecord.Value);
-                    }
-                    else
-                    {
-						if (segRecord.Value.Segment.MaxElevation - segRecord.Value.Segment.MinElevation >= 50 ||
-							(segRecord.Value.Segment.MaxElevation - segRecord.Value.Segment.MinElevation) / segRecord.Value.Segment.Distance > 0.03)
-						{
-							upNDown.Add(segRecord.Value);
-						}
-						else
-						{
-							flat.Add(segRecord.Value);
-						}
-                    }
-                }
-            }
+			SortSegmentsIntoGroups(mySegments, ref uphill, ref downhill, ref flat, ref upNDown);
 
             //this is just echo debugging to see if segments are being properly categorized
 			ShowMeTheMoney(uphill, "Uphill");
@@ -155,7 +134,57 @@ namespace StravaRecConsole
             BuildVectors(upNDown, lowestUpDownWeight, ref upDownVec);
 
             Console.Out.WriteLine("Time to find some segments!!!");
-        }
+
+			Dictionary<int, UserSegment> segsToCompare = new Dictionary<int, UserSegment>();
+
+			var startLat = 40.2518;
+			var startLon = -111.6493;
+
+			CalculateMetersPerDegreeLatLon(startLat);
+
+			var overallSouth = startLat - MetersToLatitude(MAX_SEARCH_EXTENT);
+			var overallWest = startLon - MetersToLongitude(MAX_SEARCH_EXTENT);
+			var overallNorth = startLat + MetersToLatitude(MAX_SEARCH_EXTENT);
+			var overallEast = startLon + MetersToLongitude(MAX_SEARCH_EXTENT);
+
+			double latDiff = Math.Abs(overallSouth - overallNorth);
+			double lonDiff = Math.Abs(overallWest - overallEast);
+
+			int[] squareSizes = new int[] { 500, 1000, 2000, 2500, 5000 };
+
+			for (int i = 0; i < squareSizes.Length; i++)
+			{
+				for (int latDistance = 0; latDistance < MAX_SEARCH_EXTENT * 2; latDistance += squareSizes[i])
+				{
+					for (int lonDistance = 0; lonDistance < MAX_SEARCH_EXTENT * 2; lonDistance += squareSizes[i])
+					{
+						Coordinate southWest = new Coordinate(overallSouth + MetersToLatitude(latDistance), overallWest + MetersToLongitude(lonDistance));
+						Coordinate northEast = new Coordinate(overallSouth + MetersToLatitude(latDistance + squareSizes[i]), overallWest + MetersToLongitude(lonDistance + squareSizes[i]));
+						//Console.Out.WriteLine("Square size: {0}, latDistance: {1}, lonDistance: {2}, southWest: {3}, northEast: {4}", squareSizes[i], latDistance, lonDistance, southWest, northEast);
+						ExplorerResult segments = segClient.ExploreSegments(southWest, northEast);
+						//Console.Out.WriteLine("RESULTS: {0}", segments.Results.Count);
+						FoldInResults(segments.Results, segsToCompare);
+					}
+				}
+			}
+
+			ExplorerResult overallResult = segClient.ExploreSegments(new Coordinate(overallSouth, overallWest), new Coordinate(overallNorth, overallEast));
+
+			FoldInResults(overallResult.Results, segsToCompare);
+
+
+			
+			List<UserSegment> uphillNew = new List<UserSegment>();
+			List<UserSegment> downhillNew = new List<UserSegment>();
+			List<UserSegment> flatNew = new List<UserSegment>();
+			List<UserSegment> upNDownNew = new List<UserSegment>();
+
+			SortSegmentsIntoGroups(segsToCompare, ref uphillNew, ref downhillNew, ref flatNew, ref upNDownNew);
+
+			Console.Out.WriteLine("Now time to compare 'em!!");
+
+
+		}
 
 		private static int GetMyPlace(long id, Leaderboard leaderboard)
 		{
@@ -217,5 +246,104 @@ namespace StravaRecConsole
                 vector[1] += downSeg.Segment.AverageGrade * weighting;
             }
         }
-    }
+
+		private static void CalculateMetersPerDegreeLatLon(double latitude)
+		{
+			double lat = (latitude * Math.PI) / 180.0;
+			double m1 = 111132.92;     // latitude calculation term 1
+			double m2 = -559.82;       // latitude calculation term 2
+			double m3 = 1.175;         // latitude calculation term 3
+			double m4 = -0.0023;       // latitude calculation term 4
+			double p1 = 111412.84;     // longitude calculation term 1
+			double p2 = -93.5;         // longitude calculation term 
+			double p3 = 0.118;         // longitude calculation term 3
+
+			// Calculate the length of a degree of latitude and longitude in meters
+			_metersPerDegreeLatitude = m1 + (m2 * Math.Cos(2 * lat)) + (m3 * Math.Cos(4 * lat)) +
+					(m4 * Math.Cos(6 * lat));
+			//_metersPerDegreeLatitude = 110574.0;
+			_metersPerDegreeLongitude = (p1 * Math.Cos(lat)) + (p2 * Math.Cos(3 * lat)) +
+						(p3 * Math.Cos(5 * lat));
+			//_metersPerDegreeLongitude = GetMetersPerDegreeLongitude(lat);
+		}
+
+		private static void FoldInResults(List<ExplorerSegment> segments, Dictionary<int, UserSegment> container)
+		{
+			foreach (var seg in segments)
+			{
+				if (!container.ContainsKey(seg.Id))
+				{
+					var newUserSeg = new UserSegment(null, false, null);
+					newUserSeg.ExplorerSegment = seg;
+					container.Add(seg.Id, newUserSeg);
+				}
+			}
+		}
+
+		private static void SortSegmentsIntoGroups(Dictionary<int, UserSegment> mySegments, ref List<UserSegment> uphill, ref List<UserSegment> downhill, ref List<UserSegment> flat, ref List<UserSegment> upNDown)
+		{
+			foreach (var segRecord in mySegments)
+			{
+				double averageGrade = double.MinValue;
+				double elevationDifference = double.MinValue;
+				double distance = double.MinValue;
+				if (segRecord.Value.Segment != null)
+				{
+					averageGrade = segRecord.Value.Segment.AverageGrade;
+					elevationDifference = segRecord.Value.Segment.MaxElevation - segRecord.Value.Segment.MinElevation;
+					distance = segRecord.Value.Segment.Distance;
+				}
+				else if(segRecord.Value.ExplorerSegment != null)
+				{
+					averageGrade = segRecord.Value.ExplorerSegment.AverageGrade;
+					maxElevation = segRecord.Value.ExplorerSegment.MaxElevation;
+					minElevation = segRecord.Value.ExplorerSegment.MinElevation;
+					distance = segRecord.Value.ExplorerSegment.Distance;
+				}
+				if (averageGrade != double.MinValue)
+				{
+					if (averageGrade >= 3.0)
+					{
+						uphill.Add(segRecord.Value);
+					}
+					else if (averageGrade <= -3.0)
+					{
+						downhill.Add(segRecord.Value);
+					}
+					else
+					{
+						if (segRecord.Value.Segment.MaxElevation - segRecord.Value.Segment.MinElevation >= 50 ||
+							(segRecord.Value.Segment.MaxElevation - segRecord.Value.Segment.MinElevation) / segRecord.Value.Segment.Distance > 0.03)
+						{
+							upNDown.Add(segRecord.Value);
+						}
+						else
+						{
+							flat.Add(segRecord.Value);
+						}
+					}
+				}
+			}
+		}
+
+		private static double GetLatitudeInMeters(double latitude)
+		{
+			return latitude * _metersPerDegreeLatitude;
+		}
+
+		private static double GetLongitudeInMeters(double longitude)
+		{
+			return longitude * _metersPerDegreeLongitude;
+		}
+
+		private static double MetersToLatitude(double meters)
+		{
+			return meters / _metersPerDegreeLatitude;
+		}
+
+		private static double MetersToLongitude(double meters)
+		{
+			return meters / _metersPerDegreeLongitude;
+		}
+	}
 }
