@@ -42,5 +42,7 @@ namespace StravaRec
         public double LeaderboardPercentile { get; set; }
 
         public double SegmentWeight { get; set; }
+
+        public double SimilarityScore { get; set; }
     }
 }
