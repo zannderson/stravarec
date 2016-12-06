@@ -1,0 +1,1 @@
+﻿$("#maindiv").append(new Spinner().spin());
