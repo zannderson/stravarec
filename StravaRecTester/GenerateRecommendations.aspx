@@ -1,4 +1,4 @@
-﻿<%@ Page Async="true" Language="C#" AutoEventWireup="true" CodeBehind="GenerateRecommendations.aspx.cs" Inherits="StravaRecTester.GenerateRecommendations" %>
+﻿<%@ Page Async="true" AsyncTimeout="1200" Language="C#" AutoEventWireup="true" CodeBehind="GenerateRecommendations.aspx.cs" Inherits="StravaRecTester.GenerateRecommendations" %>
 
 <!DOCTYPE html>
 

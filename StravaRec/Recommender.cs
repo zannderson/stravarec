@@ -235,7 +235,7 @@ namespace StravaRec
             Athlete me = await athClient.GetAthleteAsync();
             //var mySegmentEfforts = segClient.GetRecords(me.Id.ToString());
             //var summary = await actClient.GetSummaryThisYearAsync();
-            var myActivities = await actClient.GetActivitiesBeforeAsync(DateTime.Now, 25, 10);
+            var myActivities = await actClient.GetActivitiesBeforeAsync(DateTime.Now);
             myActivities.RemoveAll(a => a.Type != currentType);
             Dictionary<int, UserSegment> mySegments = new Dictionary<int, UserSegment>();
             var myStarred = await segClient.GetStarredSegmentsAsync();
@@ -245,7 +245,15 @@ namespace StravaRec
             {
                 getActivities.Add(actClient.GetActivityAsync(activity.Id.ToString(), true));
             }
-            await Task.WhenAll(getActivities);
+
+            try
+            {
+                await Task.WhenAll(getActivities);
+            }
+            catch(Exception ex)
+            {
+                Console.Out.WriteLine("Problem getting all activities: {0}\r\n{1}", ex.Message, ex.StackTrace);
+            }
 
             foreach (var activity in myActivities)
             {
@@ -268,7 +276,15 @@ namespace StravaRec
                         int segId = segEffort.Segment.Id;
                         getLeaderboards.Add(segClient.GetFullSegmentLeaderboardAsync(segId.ToString()));
                     }
-                    await Task.WhenAll(getLeaderboards);
+
+                    try
+                    { 
+                        await Task.WhenAll(getLeaderboards);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Out.WriteLine("Problem getting all activities: {0}\r\n{1}", ex.Message, ex.StackTrace);
+                    }
                     foreach (var segEffort in fullActivity.SegmentEfforts)
                     {
                         int segId = segEffort.Segment.Id;
@@ -392,7 +408,14 @@ namespace StravaRec
 
             //FoldInResults(overallResult.Results, segsToCompare);
 
-            await Task.WhenAll(exploreThese);
+            try
+            { 
+                await Task.WhenAll(exploreThese);
+            }
+            catch (Exception ex)
+            {
+                Console.Out.WriteLine("Problem getting all activities: {0}\r\n{1}", ex.Message, ex.StackTrace);
+            }
 
             foreach (var task in exploreThese)
             {
