@@ -1,10 +1,4 @@
-﻿using Strava.Athletes;
-using Strava.Authentication;
-using Strava.Clients;
-using Strava.Common;
-using Strava.Activities;
-using Strava.Segments;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,7 +15,7 @@ namespace StravaRecConsole
 
         static void Main(string[] args)
         {
-            var recs = Recommender.DoTheThing("34834781045370ca62b4b3fc6be384ffb868a1c0");
+            //var recs = Recommender.DoTheThing("34834781045370ca62b4b3fc6be384ffb868a1c0");
         }
     }
 }

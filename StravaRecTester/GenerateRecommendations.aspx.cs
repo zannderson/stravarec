@@ -7,6 +7,8 @@ using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using StravaRec;
+using System.Text;
+using System.IO;
 
 namespace StravaRecTester
 {
@@ -60,6 +62,105 @@ namespace StravaRecTester
             var stuff = await Recommender.DoTheThingAsync(_code);
             DoIt.Visible = false;
             Literal_KeepWaiting.Visible = false;
+            Panel_Results.Visible = true;
+            Repeater_Uphill.DataSource = stuff.Uphill;
+            Repeater_Uphill.DataBind();
+            Repeater_Downhill.DataSource = stuff.Downhill;
+            Repeater_Downhill.DataBind();
+            Repeater_Flat.DataSource = stuff.Flat;
+            Repeater_Flat.DataBind();
+            Repeater_Rolling.DataSource = stuff.UpAndDown;
+            Repeater_Rolling.DataBind();
+        }
+
+        protected void Button_SubmitMyRankings_Click(object sender, EventArgs e)
+        {
+            StringBuilder sb = new StringBuilder();
+            int index = 1;
+            sb.AppendLine("Uphill:");
+            foreach (RepeaterItem item in Repeater_Uphill.Items)
+            {
+                TextBox userRanking = (TextBox)item.FindControl("TextBox_UserRank");
+                CheckBox keepOrNot = (CheckBox)item.FindControl("CheckBox_WouldYouPick");
+                string ranking = "ERROR";
+                string keep = "ERROR";
+                if(userRanking != null)
+                {
+                    ranking = userRanking.Text;
+                }
+                if(keepOrNot != null)
+                {
+                    keep = keepOrNot.Checked.ToString();
+                }
+                sb.AppendLine(string.Format("{0}: keep: {1} ranking: {2}", index, keepOrNot, userRanking));
+                index++;
+            }
+            sb.AppendLine("Downhill:");
+            foreach (RepeaterItem item in Repeater_Uphill.Items)
+            {
+                TextBox userRanking = (TextBox)item.FindControl("TextBox_UserRank");
+                CheckBox keepOrNot = (CheckBox)item.FindControl("CheckBox_WouldYouPick");
+                string ranking = "ERROR";
+                string keep = "ERROR";
+                if (userRanking != null)
+                {
+                    ranking = userRanking.Text;
+                }
+                if (keepOrNot != null)
+                {
+                    keep = keepOrNot.Checked.ToString();
+                }
+                sb.AppendLine(string.Format("{0}: keep: {1} ranking: {2}", index, keepOrNot, userRanking));
+                index++;
+            }
+            sb.AppendLine("Flat:");
+            foreach (RepeaterItem item in Repeater_Uphill.Items)
+            {
+                TextBox userRanking = (TextBox)item.FindControl("TextBox_UserRank");
+                CheckBox keepOrNot = (CheckBox)item.FindControl("CheckBox_WouldYouPick");
+                string ranking = "ERROR";
+                string keep = "ERROR";
+                if (userRanking != null)
+                {
+                    ranking = userRanking.Text;
+                }
+                if (keepOrNot != null)
+                {
+                    keep = keepOrNot.Checked.ToString();
+                }
+                sb.AppendLine(string.Format("{0}: keep: {1} ranking: {2}", index, keepOrNot, userRanking));
+                index++;
+            }
+            sb.AppendLine("UpAndDown:");
+            foreach (RepeaterItem item in Repeater_Uphill.Items)
+            {
+                TextBox userRanking = (TextBox)item.FindControl("TextBox_UserRank");
+                CheckBox keepOrNot = (CheckBox)item.FindControl("CheckBox_WouldYouPick");
+                string ranking = "ERROR";
+                string keep = "ERROR";
+                if (userRanking != null)
+                {
+                    ranking = userRanking.Text;
+                }
+                if (keepOrNot != null)
+                {
+                    keep = keepOrNot.Checked.ToString();
+                }
+                sb.AppendLine(string.Format("{0}: keep: {1} ranking: {2}", index, keepOrNot, userRanking));
+                index++;
+            }
+
+
+
+            string filename = DateTime.Now.Ticks.ToString();
+            using (FileStream fs = new FileStream("C:/putfileshere/" + filename, FileMode.Create))
+            {
+                using (StreamWriter sw = new StreamWriter(fs))
+                {
+                    sw.Write(sb.ToString());
+                    sw.Flush();
+                }
+            }
         }
     }
 }

@@ -14,13 +14,25 @@ namespace StravaRec
 {
     public class UserSegment
     {
-        public int SegmentId { get; set; }
+        private int _segmentId;
+        public int SegmentId
+        {
+            get
+            {
+                if(_segmentId == int.MinValue)
+                {
+                    if(Segment != null)
+                    {
+                        _segmentId = Segment.Id;
+                    }
+                }
+                return _segmentId;
+            }
+        }
 
         public bool Starred { get; set; }
 
         public Segment Segment { get; set; }
-
-		public ExplorerSegment ExplorerSegment { get; set; }
 
         public List<SegmentEffort> Efforts { get; set; }
 
@@ -35,6 +47,7 @@ namespace StravaRec
 				Efforts = new List<SegmentEffort>(efforts);
 				Segment = efforts[0].Segment;
 			}
+            _segmentId = int.MinValue;
         }
 
         public int PlaceInLeaderboard { get; set; }
@@ -44,5 +57,38 @@ namespace StravaRec
         public double SegmentWeight { get; set; }
 
         public double SimilarityScore { get; set; }
+        
+        private string _url;
+        public string Url
+        {
+            get
+            {
+                if(_url == null)
+                {
+                    _url = string.Format("https://www.strava.com/segments/{0}", SegmentId);
+                }
+                return _url;
+            }
+        }
+
+        private string _name;
+        public string Name
+        {
+            get
+            {
+                if(_name == null)
+                {
+                    if(Segment != null)
+                    {
+                        _name = Segment.Name;
+                    }
+                    else
+                    {
+                        _name = "Undefined";
+                    }
+                }
+                return _name;
+            }
+        }
     }
 }
