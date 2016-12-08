@@ -275,6 +275,10 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\StravaDotNet2\StravaDotNet2.csproj">
+      <Project>{aff41a8b-e282-4c5f-9bbf-6a83e596717c}</Project>
+      <Name>StravaDotNet2</Name>
+    </ProjectReference>
     <ProjectReference Include="..\StravaRec\StravaRec.csproj">
       <Project>{b9bcf6e2-4082-45bf-9a6c-57eda4045704}</Project>
       <Name>StravaRec</Name>

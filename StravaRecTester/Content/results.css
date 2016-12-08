@@ -1,5 +1,6 @@
 ﻿.result-row {
-
+    display: flex;
+    width: 800px;
 }
 
 .result-name {

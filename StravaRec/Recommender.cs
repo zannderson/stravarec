@@ -37,7 +37,7 @@ namespace StravaRec
             Athlete me = await athClient.GetAthleteAsync();
             //var mySegmentEfforts = segClient.GetRecords(me.Id.ToString());
             //var summary = await actClient.GetSummaryThisYearAsync();
-            var myActivities = await actClient.GetActivitiesBeforeAsync(DateTime.Now, 1, 10);
+            var myActivities = await actClient.GetActivitiesBeforeAsync(DateTime.Now, 1, 100);
             myActivities.RemoveAll(a => a.Type != currentType);
             Dictionary<int, UserSegment> mySegments = new Dictionary<int, UserSegment>();
             var myStarred = await segClient.GetStarredSegmentsAsync();
@@ -169,8 +169,8 @@ namespace StravaRec
 
             Console.Out.WriteLine("Time to find some segments!!!");
 
-            var startLat = 40.2518;
-            var startLon = -111.6493;
+            var startLat = 41.74647;
+            var startLon = -111.80923;
 
             CalculateMetersPerDegreeLatLon(startLat);
 
@@ -225,11 +225,11 @@ namespace StravaRec
             }
 
             List<Task<Segment>> exploredSegs = new List<Task<Segment>>();
-            List<Task<Leaderboard>> exploredLeaderboards = new List<Task<Leaderboard>>();
+            //List<Task<Leaderboard>> exploredLeaderboards = new List<Task<Leaderboard>>();
             foreach (var task in segsToCompare)
             {
                 exploredSegs.Add(segClient.GetSegmentAsync(task.Key.ToString()));
-                exploredLeaderboards.Add(segClient.GetFullSegmentLeaderboardAsync(task.Key.ToString()));
+                //exploredLeaderboards.Add(segClient.GetFullSegmentLeaderboardAsync(task.Key.ToString()));
             }
 
             try
@@ -241,20 +241,20 @@ namespace StravaRec
                 Console.Out.WriteLine("Problem getting explored segment data: {0}\r\n{1}", ex.Message, ex.StackTrace);
             }
 
-            try
-            {
-                await Task.WhenAll(exploredLeaderboards);
-            }
-            catch (Exception ex)
-            {
-                Console.Out.WriteLine("Problem getting explored segment leaderboard data: {0}\r\n{1}", ex.Message, ex.StackTrace);
-            }
+            //try
+            //{
+            //    await Task.WhenAll(exploredLeaderboards);
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.Out.WriteLine("Problem getting explored segment leaderboard data: {0}\r\n{1}", ex.Message, ex.StackTrace);
+            //}
 
             Dictionary<int, UserSegment> finalCompareList = new Dictionary<int, UserSegment>();
 
             foreach (var segment in exploredSegs)
             {
-                UserSegment newUserSeg = new UserSegment(exploredLeaderboards[exploredSegs.IndexOf(segment)].Result, false, null);
+                UserSegment newUserSeg = new UserSegment(null, false, null);
                 newUserSeg.Segment = segment.Result;
                 finalCompareList.Add(segment.Id, newUserSeg);
             }

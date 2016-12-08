@@ -4,6 +4,7 @@ using System.Threading;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
+using Strava.Authentication;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using StravaRec;
@@ -27,8 +28,15 @@ namespace StravaRecTester
                 {
                     //this means testing. go for it...maybe don't do anything different here?
                 }
+                else
+                {
+                }
 
                 _code = code;
+            }
+            else if(string.IsNullOrEmpty(code))
+            {
+                _code = "9fe27d4ad9e8de6c9afc386cef7d65953194b19c";
             }
             else
             {
@@ -37,7 +45,7 @@ namespace StravaRecTester
 
             //Recommender.DoTheThing(_code);
 
-            RegisterAsyncTask(new PageAsyncTask(GetRecommendations));
+             RegisterAsyncTask(new PageAsyncTask(GetRecommendations));
 
             //We should maybe check here to see if we've already generated something for them and then redirect...
         }
@@ -92,11 +100,11 @@ namespace StravaRecTester
                 {
                     keep = keepOrNot.Checked.ToString();
                 }
-                sb.AppendLine(string.Format("{0}: keep: {1} ranking: {2}", index, keepOrNot, userRanking));
+                sb.AppendLine(string.Format("{0}: keep: {1} ranking: {2}", index, keep, ranking));
                 index++;
             }
             sb.AppendLine("Downhill:");
-            foreach (RepeaterItem item in Repeater_Uphill.Items)
+            foreach (RepeaterItem item in Repeater_Downhill.Items)
             {
                 TextBox userRanking = (TextBox)item.FindControl("TextBox_UserRank");
                 CheckBox keepOrNot = (CheckBox)item.FindControl("CheckBox_WouldYouPick");
@@ -110,11 +118,11 @@ namespace StravaRecTester
                 {
                     keep = keepOrNot.Checked.ToString();
                 }
-                sb.AppendLine(string.Format("{0}: keep: {1} ranking: {2}", index, keepOrNot, userRanking));
+                sb.AppendLine(string.Format("{0}: keep: {1} ranking: {2}", index, keep, ranking));
                 index++;
             }
             sb.AppendLine("Flat:");
-            foreach (RepeaterItem item in Repeater_Uphill.Items)
+            foreach (RepeaterItem item in Repeater_Flat.Items)
             {
                 TextBox userRanking = (TextBox)item.FindControl("TextBox_UserRank");
                 CheckBox keepOrNot = (CheckBox)item.FindControl("CheckBox_WouldYouPick");
@@ -128,11 +136,11 @@ namespace StravaRecTester
                 {
                     keep = keepOrNot.Checked.ToString();
                 }
-                sb.AppendLine(string.Format("{0}: keep: {1} ranking: {2}", index, keepOrNot, userRanking));
+                sb.AppendLine(string.Format("{0}: keep: {1} ranking: {2}", index, keep, ranking));
                 index++;
             }
             sb.AppendLine("UpAndDown:");
-            foreach (RepeaterItem item in Repeater_Uphill.Items)
+            foreach (RepeaterItem item in Repeater_Rolling.Items)
             {
                 TextBox userRanking = (TextBox)item.FindControl("TextBox_UserRank");
                 CheckBox keepOrNot = (CheckBox)item.FindControl("CheckBox_WouldYouPick");
@@ -146,14 +154,12 @@ namespace StravaRecTester
                 {
                     keep = keepOrNot.Checked.ToString();
                 }
-                sb.AppendLine(string.Format("{0}: keep: {1} ranking: {2}", index, keepOrNot, userRanking));
+                sb.AppendLine(string.Format("{0}: keep: {1} ranking: {2}", index, keep, ranking));
                 index++;
             }
 
-
-
             string filename = DateTime.Now.Ticks.ToString();
-            using (FileStream fs = new FileStream("C:/putfileshere/" + filename, FileMode.Create))
+            using (FileStream fs = new FileStream("C:/putfileshere/" + filename + ".txt", FileMode.Create))
             {
                 using (StreamWriter sw = new StreamWriter(fs))
                 {
@@ -161,6 +167,8 @@ namespace StravaRecTester
                     sw.Flush();
                 }
             }
+
+            Response.Redirect("http://www.strava.com");
         }
     }
 }
