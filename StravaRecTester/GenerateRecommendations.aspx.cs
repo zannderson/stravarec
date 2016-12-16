@@ -36,7 +36,7 @@ namespace StravaRecTester
             }
             else if(string.IsNullOrEmpty(code))
             {
-                _code = "9fe27d4ad9e8de6c9afc386cef7d65953194b19c";
+                _code = "34834781045370ca62b4b3fc6be384ffb868a1c0";
             }
             else
             {
